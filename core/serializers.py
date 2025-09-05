@@ -7,7 +7,7 @@ from django.contrib.auth.models import Group
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'role','created_at', 'updated_at']
+        fields = '__all__'
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -22,7 +22,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'password']
+        fields = '__all__'
         
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -36,7 +36,7 @@ class EventSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Event
-        fields = ['id', 'title', 'description', 'location', 'start_date', 'end_date', 'created_at', 'updated_at', 'organizer']
+        fields = '__all__'
     
     def validate(self, data):
         start_date = data.get('start_date')
@@ -53,53 +53,23 @@ class EventSerializer(serializers.ModelSerializer):
 class RegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Registration
-        fields = ['id', 'status', 'created_at', 'updated_at', 'user']
+        fields = '__all__'
 
 class TicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
-        fields = ['id', 'type', 'price', 'quota', 'created_at', 'updated_at', 'event']
+        fields = '__all__'
         
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = ['id', 'amount', 'method', 'status', 'created_at', 'updated_at', 'registration']
+        fields = '__all__'
 
 class GroupSerializer(serializers.HyperlinkedModelSerializer):
-    _links = serializers.SerializerMethodField()
 
     class Meta:
         model = Group
-        fields = ['id', 'name', '_links']
-
-    def get__links(self, obj):
-        request = self.context.get('request')
-        return [
-            {
-                "rel": "create",
-                "href": reverse('group-list', request=request),
-                "action": "POST",
-                "types": ["application/json"]
-            },
-            {
-                "rel": "detail",
-                "href": reverse('group-detail', kwargs={'pk': obj.pk}, request=request),
-                "action": "GET",
-                "types": ["application/json"]
-            },
-            {
-                "rel": "update",
-                "href": reverse('group-detail', kwargs={'pk': obj.pk}, request=request),
-                "action": "PUT",
-                "types": ["application/json"]
-            },
-            {
-                "rel": "delete",
-                "href": reverse('group-detail', kwargs={'pk': obj.pk}, request=request),
-                "action": "DELETE",
-                "types": ["application/json"]
-            }
-        ]
+        fields = '__all__'
 
 
 class AssignRoleSerializer(serializers.Serializer):

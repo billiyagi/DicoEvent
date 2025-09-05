@@ -16,6 +16,13 @@ from django.shortcuts import get_object_or_404
 # Create your views here.
 
 class UserView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        if self.request.method == "POST" or self.request.method == "GET":
+            return [IsAuthenticated(), IsAdminOrSuperUser()]
+        return [IsAuthenticated()]
+    
     def get(self, request):
         users = User.objects.all().order_by('created_at')[:10]
         serializer = UserSerializer(users, many=True)
@@ -31,6 +38,13 @@ class UserView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        if self.request.method == "PUT" or self.request.method == "GET" or self.request.method == "DELETE":
+            return [IsAuthenticated(), IsAdminOrSuperUser()]
+        return [IsAuthenticated()]
+    
     def get_object(self, pk):
         try:
             user = User.objects.get(pk=pk)
@@ -123,6 +137,13 @@ class EventDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 class RegistrationView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsAdminOrSuperUser()]
+        return [IsAuthenticated()]
+    
     def get(self, request):
         registrations = Registration.objects.all().order_by('created_at')[:10]
         serializer = RegistrationSerializer(registrations, many=True)
@@ -137,12 +158,12 @@ class RegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class RegistrationDetailView(APIView):
-    # authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     
-    # def get_permissions(self):
-    #     if self.request.method == "POST":
-    #         return [IsAuthenticated(), IsUser()]
-    #     return [IsAuthenticated()]
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsUser()]
+        return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get_object(self, id):
         try:
@@ -173,12 +194,12 @@ class RegistrationDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
     
 class TicketView(APIView):
-    # authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTAuthentication]
     
-    # def get_permissions(self):
-    #     if self.request.method == "POST":
-    #         return [IsAuthenticated(), IsAdminOrSuperUser()]
-    #     return [IsAuthenticated()]
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsUser()]
+        return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get(self, request):
         tickets = Ticket.objects.all().order_by('created_at')[:10]
@@ -231,6 +252,13 @@ class TicketDetailView(APIView):
 
 # Payment
 class PaymentView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticated(), IsUser()]
+        return [IsAuthenticated(), IsAdminOrSuperUser()]
+    
     def get(self, request):
         payments = Payment.objects.all().order_by('created_at')[:10]
         serializer = PaymentSerializer(payments, many=True)
@@ -257,6 +285,13 @@ class PaymentView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PaymentDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsUser()]
+        return [IsAuthenticated(), IsAdminOrSuperUser()]
+    
     def get_object(self, id):
         try:
             return Payment.objects.get(id=id)
@@ -291,19 +326,29 @@ class PaymentDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class GroupListCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        return [IsAuthenticated(), IsSuperUser()]
+    
     def get(self, request):
         groups = Group.objects.all().order_by('name')[:10]
-        serializer = GroupSerializer(groups, many=True)
+        serializer = GroupSerializer(groups, many=True, context={'request': request})
         return Response({'groups': serializer.data})
  
     def post(self, request):
-        serializer = GroupSerializer(data=request.data)
+        serializer = GroupSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class GroupDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        return [IsAuthenticated(), IsSuperUser()]
+    
     def get_object(self, pk):
         try:
             group = Group.objects.get(pk=pk)
@@ -314,12 +359,12 @@ class GroupDetailView(APIView):
  
     def get(self, request, pk):
         group = self.get_object(pk)
-        serializer = GroupSerializer(group)
+        serializer = GroupSerializer(group, context={'request': request})
         return Response(serializer.data)
  
     def put(self, request, pk):
         group = self.get_object(pk)
-        serializer = GroupSerializer(group, data=request.data)
+        serializer = GroupSerializer(group, data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -331,6 +376,11 @@ class GroupDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
         
 class AssignRoleView(APIView):
+    authentication_classes = [JWTAuthentication]
+    
+    def get_permissions(self):
+        return [IsAuthenticated(), IsSuperUser()]
+    
     def post(self, request):
         serializer = AssignRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

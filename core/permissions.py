@@ -13,14 +13,14 @@ class IsAdmin(BasePermission):
     Allows access to admin.
     """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'ADMIN'
+        return request.user and request.user.is_authenticated and request.user.groups.filter(name='admin').exists()
     
 class IsUser(BasePermission):
     """
     Allows access to Organizer Events.
     """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'USER'
+        return request.user and request.user.is_authenticated and request.user.groups.filter(name='user').exists()
     
 class IsAdminOrSuperUser(BasePermission):
     """
@@ -29,6 +29,6 @@ class IsAdminOrSuperUser(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user and request.user.is_authenticated and (
-                request.user.is_superuser or request.user.role == 'ADMIN'
+                request.user.is_superuser or request.user.groups.filter(name='admin').exists()
             )
         )
