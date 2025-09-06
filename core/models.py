@@ -13,6 +13,18 @@ class UserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
+    
+    def create_superuser(self, username, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(username, email, password, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
     
@@ -23,6 +35,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(max_length=255, unique=True)
     password = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -46,10 +59,11 @@ class Event(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     location = models.CharField(max_length=255)
+    status = models.CharField(max_length=255)
+    category = models.CharField(max_length=255, null=True, blank=True)
+    quota = models.IntegerField()
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
-    status = models.CharField(max_length=255)
-    quota = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -57,24 +71,8 @@ class Event(models.Model):
     organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="events")
     
     def __str__(self) -> str:
-        return self.title
-    
-class Registration(models.Model):
-    class Status(models.TextChoices):
-        PENDING = "PENDING", "Pending"
-        CONFIRMED = "CONFIRMED", "Confirmed"
-        CANCELLED = "CANCELLED", "Cancelled"
-        
-    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True, editable=False)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    
-    
-    # Relation
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="registrations")
-    
+        return self.name
+
 class Ticket(models.Model):
     id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True, editable=False)
     name = models.CharField(max_length=255)
@@ -88,6 +86,17 @@ class Ticket(models.Model):
     
     # Relation
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="tickets")
+
+class Registration(models.Model):
+        
+    id = models.UUIDField(default=uuid.uuid4, unique=True, primary_key=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Relation
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="registrations")
+    
+    ticket = models.OneToOneField(Ticket, on_delete=models.CASCADE, related_name="registration", null=True, blank=True)
 
 
 class Payment(models.Model):
