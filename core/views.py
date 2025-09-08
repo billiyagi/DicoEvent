@@ -19,7 +19,7 @@ class UserView(APIView):
     authentication_classes = [JWTAuthentication]
     
     def get_permissions(self):
-        if self.request.method == "POST" or self.request.method == "GET":
+        if self.request.method == "GET":
             return [IsAuthenticated(), IsAdminOrSuperUser()]
         return [IsAuthenticated()]
     
