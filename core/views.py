@@ -7,7 +7,7 @@ from rest_framework import status, serializers
 from django.http import Http404
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-from .permissions import IsAdmin, IsSuperUser, IsUser, IsAdminOrSuperUser
+from .permissions import IsAdmin, IsSuperUser, IsUser, IsAdminOrSuperUser, IsOwnerOrAdminOrSuperUser
 from django.contrib.auth.models import Group
 from django.shortcuts import get_object_or_404
 
@@ -20,6 +20,10 @@ class UserView(APIView):
     
     def get_permissions(self):
         if self.request.method == "GET":
+            return [IsAuthenticated(), IsAdminOrSuperUser()]
+        elif self.request.method == "PUT":
+            return [IsAuthenticated()]
+        elif self.request.method == "DELETE":
             return [IsAuthenticated(), IsAdminOrSuperUser()]
         return [IsAuthenticated()]
     
@@ -42,7 +46,7 @@ class UserDetailView(APIView):
     
     def get_permissions(self):
         if self.request.method == "PUT" or self.request.method == "GET" or self.request.method == "DELETE":
-            return [IsAuthenticated(), IsAdminOrSuperUser()]
+            return [IsAuthenticated(), IsOwnerOrAdminOrSuperUser()]
         return [IsAuthenticated()]
     
     def get_object(self, pk):
@@ -162,7 +166,7 @@ class RegistrationDetailView(APIView):
     
     def get_permissions(self):
         if self.request.method == "GET":
-            return [IsAuthenticated(), IsUser()]
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get_object(self, id):
@@ -173,12 +177,8 @@ class RegistrationDetailView(APIView):
     
     def get(self, request, id):
         registration = self.get_object(id=id)
-        serializer = RegistrationSerializer(registration, data=request.data)
-        
-        if serializer.is_valid():
-            return Response({
-                    'registration': serializer.data
-                })
+        serializer = RegistrationSerializer(registration)
+        return Response({'registration': serializer.data})
         
     def put(self, request, id):
         registration = self.get_object(id=id)
@@ -199,6 +199,9 @@ class TicketView(APIView):
     def get_permissions(self):
         if self.request.method == "GET":
             return [IsAuthenticated(), IsUser()]
+        elif self.request.method == "POST":
+            # Admin atau Organizer (User role)
+            return [IsAuthenticated(), IsAdminOrSuperUser()]
         return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get(self, request):
@@ -230,12 +233,8 @@ class TicketDetailView(APIView):
     
     def get(self, request, id):
         tickets = self.get_object(id=id)
-        serializer = TicketSerializer(tickets, data=request.data)
-        
-        if serializer.is_valid():
-            return Response({
-                    'tickets': serializer.data
-                })
+        serializer = TicketSerializer(tickets)
+        return Response({'ticket': serializer.data})
         
     def put(self, request, id):
         tickets = self.get_object(id=id)
@@ -277,9 +276,13 @@ class PaymentView(APIView):
             if not ticket:
                 return Response({"error": "No ticket available for this event"}, status=status.HTTP_400_BAD_REQUEST)
 
+            ticket.status = "RESERVED"
+            ticket.save()
+
+            ticket_serializer = TicketSerializer(ticket)
             return Response({
                 "payment": serializer.data,
-                "ticket_item": ticket_item_serializer.data
+                "ticket": ticket_serializer.data
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -289,7 +292,7 @@ class PaymentDetailView(APIView):
     
     def get_permissions(self):
         if self.request.method == "GET":
-            return [IsAuthenticated(), IsUser()]
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get_object(self, id):
@@ -312,10 +315,10 @@ class PaymentDetailView(APIView):
             # Cek jika status diupdate menjadi CONFIRMED
             if serializer.validated_data.get('status') == "CONFIRMED":
                 registration = payment.registration
-                if registration and hasattr(registration, "ticket_item"):
-                    ticket_item = registration.ticket_item
-                    ticket_item.status = "SOLD"
-                    ticket_item.save()
+                if registration and registration.ticket:
+                    ticket = registration.ticket
+                    ticket.status = "SOLD"
+                    ticket.save()
 
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
