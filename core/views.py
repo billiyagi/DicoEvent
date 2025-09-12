@@ -25,10 +25,13 @@ class UserView(APIView):
             return [IsAuthenticated()]
         elif self.request.method == "DELETE":
             return [IsAuthenticated(), IsAdminOrSuperUser()]
+        elif self.request.method == "POST":
+            # Daftar user baru -> tidak perlu login
+            return []
         return [IsAuthenticated()]
     
     def get(self, request):
-        users = User.objects.all().order_by('created_at')[:10]
+        users = User.objects.all().order_by('id')[:10]
         serializer = UserSerializer(users, many=True)
         return Response({
                 'users': serializer.data
@@ -117,15 +120,13 @@ class EventDetailView(APIView):
     
     def get_permissions(self):
         if self.request.method == "GET":
-            return [IsAuthenticated(), IsUser()]
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get(self, request, id):
         event = self.get_object(id=id)
         serializer = EventSerializer(event)
-        return Response({
-                    'event': serializer.data
-                })
+        return Response(serializer.data)
         
     def put(self, request, id):
         event = self.get_object(id=id)
@@ -178,7 +179,7 @@ class RegistrationDetailView(APIView):
     def get(self, request, id):
         registration = self.get_object(id=id)
         serializer = RegistrationSerializer(registration)
-        return Response({'registration': serializer.data})
+        return Response(serializer.data)
         
     def put(self, request, id):
         registration = self.get_object(id=id)
@@ -198,7 +199,7 @@ class TicketView(APIView):
     
     def get_permissions(self):
         if self.request.method == "GET":
-            return [IsAuthenticated(), IsUser()]
+            return [IsAuthenticated()]
         elif self.request.method == "POST":
             # Admin atau Organizer (User role)
             return [IsAuthenticated(), IsAdminOrSuperUser()]
@@ -222,7 +223,7 @@ class TicketDetailView(APIView):
     
     def get_permissions(self):
         if self.request.method == "GET":
-            return [IsAuthenticated(), IsUser()]
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get_object(self, id):
@@ -234,7 +235,7 @@ class TicketDetailView(APIView):
     def get(self, request, id):
         tickets = self.get_object(id=id)
         serializer = TicketSerializer(tickets)
-        return Response({'ticket': serializer.data})
+        return Response(serializer.data)
         
     def put(self, request, id):
         tickets = self.get_object(id=id)
@@ -255,7 +256,7 @@ class PaymentView(APIView):
     
     def get_permissions(self):
         if self.request.method == "POST":
-            return [IsAuthenticated(), IsUser()]
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminOrSuperUser()]
     
     def get(self, request):
@@ -266,25 +267,8 @@ class PaymentView(APIView):
     def post(self, request):
         serializer = PaymentSerializer(data=request.data)
         if serializer.is_valid():
-            payment = serializer.save(status='PENDING')  # Payment dibuat PENDING
-
-            # Ambil registrasi terkait
-            registration = payment.registration
-
-            # Ambil tiket yang terkait dengan event registrasi (misal 1 tiket per event)
-            ticket = Ticket.objects.filter(event=registration.user.events.first()).first()
-            if not ticket:
-                return Response({"error": "No ticket available for this event"}, status=status.HTTP_400_BAD_REQUEST)
-
-            ticket.status = "RESERVED"
-            ticket.save()
-
-            ticket_serializer = TicketSerializer(ticket)
-            return Response({
-                "payment": serializer.data,
-                "ticket": ticket_serializer.data
-            }, status=status.HTTP_201_CREATED)
-
+            payment = serializer.save(payment_status='PENDING')
+            return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PaymentDetailView(APIView):
@@ -304,7 +288,7 @@ class PaymentDetailView(APIView):
     def get(self, request, id):
         payment = self.get_object(id=id)
         serializer = PaymentSerializer(payment)
-        return Response({'payment': serializer.data})
+        return Response(serializer.data)
 
     def put(self, request, id):
         payment = self.get_object(id)
@@ -392,4 +376,9 @@ class AssignRoleView(APIView):
         group = get_object_or_404(Group, pk=serializer.validated_data['group_id'])
  
         user.groups.add(group)
-        return Response(status=status.HTTP_201_CREATED)
+        return Response({
+            "message": "Role assigned successfully",
+            "user_id": str(user.id),
+            "group_id": group.id,
+            "group_name": group.name,
+        },status=status.HTTP_201_CREATED)
