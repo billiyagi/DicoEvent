@@ -32,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         if password is not None:
             instance.set_password(password)
-        user.is_active = True
+        instance.is_active = True
         instance.save()
         if groups is not None:
             instance.groups.set(groups)
